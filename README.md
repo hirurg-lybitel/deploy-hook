@@ -1,32 +1,27 @@
 # deploy-hook
 
-Простой Node.js сервер для автоматизации деплоя через вебхуки (например, из GitHub или GitLab).
+A simple Node.js server for automating deployments via webhooks (e.g., from GitHub or GitLab).
 
-## Назначение
-- Принимает POST-запросы на эндпоинт `/webhook`.
-- Проверяет подпись запроса (HMAC SHA256).
-- При успешной проверке запускает shell-скрипт (например, для деплоя или обновления контейнеров).
+## Purpose
+- Accepts POST requests at the `/webhook` endpoint.
+- Verifies the request signature (HMAC SHA256).
+- On successful verification, runs a shell script (for deployment or updating containers).
 
-## Быстрый старт
-1. Установите зависимости:
+## Quick Start
+1. Install dependencies:
    ```sh
    npm install
    ```
-2. Создайте файл `.env` с переменными:
+2. Create a `.env` file with variables:
    ```env
    SECRET=your_webhook_secret
    PORT=60112
    ```
-3. Запустите сервер:
+3. Start the server:
    ```sh
    node index.js
    ```
-4. Настройте ваш сервис (например, GitHub) на отправку вебхуков на:
+4. Configure your service (e.g., GitHub) to send webhooks to:
    ```
-   http://<ваш_сервер>:<PORT>/webhook
+   http://<your_server>:<PORT>/webhook
    ```
-
-## Примечания
-- Скрипт для деплоя должен быть доступен серверу (например, через volume или на хосте).
-- Для автозапуска используйте pm2 или systemd.
-- Для работы с реверс-прокси из контейнера используйте адрес `host.docker.internal` (и настройте `extra_hosts` при необходимости). 
