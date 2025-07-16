@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    container_name: deploy-hook
+    env_file:
+      - .env
+    ports:
+      - "${PORT}:${PORT}"
+    restart: unless-stopped 
+    volumes:
+      - type: bind
+        source: shared
+        target: /shared
+        read_only: false

@@ -17,6 +17,7 @@ function verifySignature(req, res, buf) {
   const hmac = crypto.createHmac('sha256', SECRET);
   hmac.update(buf);
   const expected = `sha256=${hmac.digest('hex')}`;
+
   if (signature !== expected) {
     throw new Error('Invalid signature');
   }
@@ -25,7 +26,7 @@ function verifySignature(req, res, buf) {
 app.post('/webhook', (req, res) => {
   console.log('Webhook received');
 
-  exec('bash ./deploy.sh', (err, stdout, stderr) => {
+  exec('bash ./shared/script.sh', (err, stdout, stderr) => {
     if (err) {
       console.error(stderr);
       return res.status(500).send('Deployment failed');
@@ -36,6 +37,6 @@ app.post('/webhook', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Listening for webhooks on port ${PORT}`);
 });
