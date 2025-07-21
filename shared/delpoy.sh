@@ -40,7 +40,6 @@ pnpm install --prod --ignore-scripts
 # ==== SET SSL CERTIFICATE PATH ====
 SSL_CERT_PATH="$(realpath "$SCRIPT_DIR/ssl")"
 export SSL_CERT_PATH
-echo "📁 SSL_CERT_PATH set to: $SSL_CERT_PATH"
 
 # ==== RUN DEPLOY SCRIPT ====
 echo "🚀 Running pnpm $DEPLOY_SCRIPT with build flag..."
