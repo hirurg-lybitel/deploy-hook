@@ -7,7 +7,7 @@ services:
       - .env
     ports:
       - "${PORT}:${PORT}"
-    restart: unless-stopped 
+    restart: always
     volumes:
       - type: bind
         source: shared
