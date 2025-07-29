@@ -6,8 +6,11 @@ const { spawn } = require('child_process');
 
 const SECRET = process.env.SECRET ?? 'yyehfu34hg67h5';
 const PORT = process.env.PORT ?? 3000;
+const MAIN_CONTAINER_PORT = process.env.MAIN_CONTAINER_PORT;
+const MAIN_DB_PORT = process.env.MAIN_DB_PORT;
 
 const app = express();
+app.use(bodyParser.raw({ type: 'application/json' }));
 app.use(bodyParser.json({ verify: verifySignature }));
 
 function verifySignature(req, res, buf) {
@@ -24,14 +27,31 @@ function verifySignature(req, res, buf) {
 }
 
 app.post('/webhook', (req, res) => {
-  console.log('Webhook received');
+  /** Deploy type 'main' | 'client' */
+  const delpoyType = req.query.type;
+
+  const body = Object.keys(req.body).length > 0 ? JSON.parse(req.body.toString()) : {};
+  const domain = body?.env?.domain;
+  const port = body?.env?.port ?? MAIN_CONTAINER_PORT;
+  const dbPort = body?.env?.dbPort ?? MAIN_DB_PORT;
 
   const environment = { ...process.env };
 
   /** Delete all custom envs of PM2 to override */
   delete environment.PORT;
 
-  const deploy = spawn('bash', ['./shared/deploy.sh'], {
+  const scriptName = (() => {
+    switch (delpoyType) {
+      case 'main':
+        return 'deploy.main.sh';
+      case 'client': 
+        return 'deploy.client.sh'
+      default:
+        return '';
+    }
+  })();
+
+  const deploy = spawn('bash', [`./shared/${scriptName}`], {
   stdio: 'inherit',
   env: {
     ...environment,
@@ -39,15 +59,22 @@ app.post('/webhook', (req, res) => {
     GIT_CURL_VERBOSE: '1',
     GIT_TERMINAL_PROMPT: '0', 
     GIT_ASKPASS: 'echo',
+    DOMAIN: domain,
+    DB_PORT: dbPort,
+    DB_CONTAINER_NAME: domain ? `mongodb.${domain}` : 'mongodb',
+    PORT: port,
+    CONTAINER_NAME: domain ? `king-server-${domain}` : 'king-pos-server',    
+    COMPOSE_PROJECT_NAME: domain ? `king-server-${domain}` : 'king-pos-server',
+    NEXTAUTH_URL: `https://${domain ?? 'king-pos'}.gdmn.app`
   }});
 
 
   deploy.on('close', code => {
     if (code === 0) {
-      console.log('Deployment complete');
+      console.log('Webhook Deployment complete');
       res.status(200).send('Deployment complete');
     } else {
-      console.error(`Deployment failed with code ${code}`);
+      console.error(`Webhook Deployment failed with code ${code}`);
       res.status(500).send(`Deployment failed with code ${code}`);
     }
   });
