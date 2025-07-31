@@ -27,13 +27,19 @@ function verifySignature(req, res, buf) {
 }
 
 app.post('/webhook', (req, res) => {
-  /** Deploy type 'main' | 'client' */
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.flushHeaders();
+
+  try {
+    /** Deploy type 'main' | 'client' */
   const delpoyType = req.query.type;
 
   const body = Object.keys(req.body).length > 0 ? JSON.parse(req.body.toString()) : {};
   const domain = body?.env?.domain;
   const port = body?.env?.port ?? MAIN_CONTAINER_PORT;
   const dbPort = body?.env?.dbPort ?? MAIN_DB_PORT;
+
+  console.log('webhook', { delpoyType, body, domain, port, dbPort });
 
   const environment = { ...process.env };
 
@@ -65,19 +71,24 @@ app.post('/webhook', (req, res) => {
     PORT: port,
     CONTAINER_NAME: domain ? `king-server-${domain}` : 'king-pos-server',    
     COMPOSE_PROJECT_NAME: domain ? `king-server-${domain}` : 'king-pos-server',
-    NEXTAUTH_URL: `https://${domain ?? 'king-pos'}.gdmn.app`
+    NEXTAUTH_URL: `https://${domain ?? 'king-pos'}.gdmn.app`,
+    // NEXT_PUBLIC_DOMAIN: `${domain ?? 'king-pos'}.gdmn.app`
   }});
 
 
   deploy.on('close', code => {
     if (code === 0) {
       console.log('Webhook Deployment complete');
-      res.status(200).send('Deployment complete');
+      res.end(JSON.stringify({ success: true, message: 'Deployment complete' }));
     } else {
       console.error(`Webhook Deployment failed with code ${code}`);
-      res.status(500).send(`Deployment failed with code ${code}`);
+      res.end(JSON.stringify({ success: false, error: `Deployment failed with code ${code}` }));
     }
   });
+  } catch (error) {
+    console.error('Webhook Deployment failed', error);
+    res.end(JSON.stringify({ success: false, error: error.message }));    
+  }
 });
 
 app.listen(PORT, '0.0.0.0', () => {
