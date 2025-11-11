@@ -1,0 +1,57 @@
+version: "3.8"
+services:
+  client:
+    image: gdmn-crm-client:latest
+    container_name: crm_client
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: client
+      args:
+        - NX_SERVER_HOST=${NX_SERVER_HOST}
+        - NX_SERVER_PORT=${NX_SERVER_PORT}
+        - NX_MUI_LICENSE=${NX_MUI_LICENSE}
+        - NX_SOCKET_NOTIFICATIONS_PORT=${NX_SOCKET_NOTIFICATIONS_PORT}
+        - NX_SOCKET_STREAMING_UPDATE_PORT=${NX_SOCKET_STREAMING_UPDATE_PORT}
+        - NX_SOCKET_TICKETS_PORT=${NX_SOCKET_TICKETS_PORT}
+        - NX_BRANCH=dockering
+    ports:
+      - ${NX_APP_PORT}:80
+    volumes:
+      - ${SSL_CERT_PATH}:/etc/nginx/ssl:ro
+    env_file:
+      - ./.env
+      - ./.env.prod
+    environment:
+      - TZ=Europe/Minsk
+    networks:
+      - proxy_network
+
+  server:
+    image: gdmn-crm-server:latest
+    container_name: crm_server
+    hostname: crm_server
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: server
+      args:
+        - NX_BRANCH=dockering    
+    ports:
+      - "${NX_SERVER_PORT}:${NX_SERVER_PORT}"
+      - "${NX_SOCKET_NOTIFICATIONS_PORT}:${NX_SOCKET_NOTIFICATIONS_PORT}"
+      - "${NX_SOCKET_STREAMING_UPDATE_PORT}:${NX_SOCKET_STREAMING_UPDATE_PORT}"
+      - "${NX_SOCKET_TICKETS_PORT}:${NX_SOCKET_TICKETS_PORT}"
+    volumes:
+      - ${SSL_CERT_PATH}:/ssl:ro
+    env_file:
+      - ./.env
+      - ./.env.prod
+    environment:
+      - TZ=Europe/Minsk
+    networks:
+      - proxy_network
+
+networks:
+  proxy_network:
+    external: true

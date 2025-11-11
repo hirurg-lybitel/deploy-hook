@@ -5,7 +5,8 @@ module.exports = {
       script: 'index.js',
       watch: true,
       ignore_watch: [
-        'node_modules'
+        'repos',
+        'node_modules',
       ],
       env: {
         ...process.env,

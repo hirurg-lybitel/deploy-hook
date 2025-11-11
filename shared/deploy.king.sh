@@ -3,10 +3,10 @@
 set -e 
 
 # ==== CONFIGURATION ====
-REPO_URL="git@github.com:GoldenSoftwareLtd/king-of-pos.git"
+REPO_URL="git@github-king-of-pos:GoldenSoftwareLtd/king-of-pos.git"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR=$(realpath "$SCRIPT_DIR/../repos/king-pos-server")
-ENV_FILE="$SCRIPT_DIR/envs/.env.prod.local"
+ENV_FILE="$SCRIPT_DIR/envs/king-pos/.env.prod.local"
 BRANCH="master"
 DEPLOY_SCRIPT="docker:s:up"
 
@@ -39,6 +39,7 @@ pnpm install --prod --ignore-scripts
 
 # ==== SET SSL CERTIFICATE PATH ====
 SSL_CERT_PATH="$(realpath "$SCRIPT_DIR/ssl")"
+echo "SET SSL PATH $SSL_CERT_PATH"
 export SSL_CERT_PATH
 
 # ==== RUN DEPLOY SCRIPT ====
@@ -47,3 +48,8 @@ pnpm "$DEPLOY_SCRIPT" --build
 
 # ==== DEPLOYMENT COMPLETE ====
 echo "✅ Deployment finished: $(date)"
+
+# # ==== CLEANUP ====
+# echo "🧹 Removing project directory: $PROJECT_DIR"
+# rm -rf "$PROJECT_DIR"
+# echo "🗑️ Project directory removed."

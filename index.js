@@ -31,15 +31,13 @@ app.post('/webhook', (req, res) => {
   res.flushHeaders();
 
   try {
-    /** Deploy type 'main' | 'client' */
+    /** Deploy type 'main' | 'client | 'crm' */
   const delpoyType = req.query.type;
 
   const body = Object.keys(req.body).length > 0 ? JSON.parse(req.body.toString()) : {};
   const domain = body?.env?.domain;
   const port = body?.env?.port ?? MAIN_CONTAINER_PORT;
   const dbPort = body?.env?.dbPort ?? MAIN_DB_PORT;
-
-  console.log('webhook', { delpoyType, body, domain, port, dbPort });
 
   const environment = { ...process.env };
 
@@ -48,14 +46,20 @@ app.post('/webhook', (req, res) => {
 
   const scriptName = (() => {
     switch (delpoyType) {
-      case 'main':
-        return 'deploy.main.sh';
+      case 'king':
+        return 'deploy.king.sh';
       case 'client': 
         return 'deploy.client.sh'
+      case 'crm':
+        return 'deploy.crm.sh'
       default:
         return '';
     }
   })();
+
+  if (!scriptName) {
+    throw new Error("Unrecognised repository webhook")
+  }
 
   const deploy = spawn('bash', [`./shared/${scriptName}`], {
   stdio: 'inherit',
@@ -65,14 +69,15 @@ app.post('/webhook', (req, res) => {
     GIT_CURL_VERBOSE: '1',
     GIT_TERMINAL_PROMPT: '0', 
     GIT_ASKPASS: 'echo',
-    DOMAIN: domain,
-    DB_PORT: dbPort,
-    DB_CONTAINER_NAME: domain ? `mongodb.${domain}` : 'mongodb',
-    PORT: port,
-    CONTAINER_NAME: domain ? `king-server-${domain}` : 'king-pos-server',    
-    COMPOSE_PROJECT_NAME: domain ? `king-server-${domain}` : 'king-pos-server',
-    NEXTAUTH_URL: `https://${domain ?? 'king-pos'}.gdmn.app`,
-    // NEXT_PUBLIC_DOMAIN: `${domain ?? 'king-pos'}.gdmn.app`
+    ...(scriptName !== 'deploy.crm.sh' && {
+      DOMAIN: domain,
+      DB_PORT: dbPort,
+      DB_CONTAINER_NAME: domain ? `mongodb.${domain}` : 'mongodb',
+      PORT: port,
+      CONTAINER_NAME: domain ? `king-server-${domain}` : 'king-pos-server',    
+      COMPOSE_PROJECT_NAME: domain ? `king-server-${domain}` : 'king-pos-server',
+      NEXTAUTH_URL: `https://${domain ?? 'king-pos'}.gdmn.app`,
+    })
   }});
 
 

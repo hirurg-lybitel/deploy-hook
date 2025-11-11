@@ -6,7 +6,7 @@ set -e
 REPO_URL="git@github.com:GoldenSoftwareLtd/king-of-pos.git"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR=$(realpath "$SCRIPT_DIR/../repos/king-pos-server")
-ENV_FILE="$SCRIPT_DIR/envs/.env.prod.local"
+ENV_FILE="$SCRIPT_DIR/envs/king-pos/.env.prod.local"
 DOCKER_COMPOSE_FILE="$SCRIPT_DIR/envs/docker-compose.server-back.yaml"
 BRANCH="master"
 DEPLOY_SCRIPT="docker:s:up"
