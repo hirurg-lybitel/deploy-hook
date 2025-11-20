@@ -24,7 +24,7 @@ Automated deployments via secure webhooks. This tiny Node.js service listens for
 - `shared/` — deployment scripts, SSL bundle, environment templates (`envs/`)
 - `repos/` — working directory where target projects are cloned/updated
 - `ecosystem.config.js` — PM2 configuration
-- `docker-compose.yml`, `Dockerfile` — containerization for this service
+- `docker-compose.yaml`, `Dockerfile` — containerization for this service
 
 ## Requirements
 - Node.js 18+ (Docker image uses `node:22-alpine`)
