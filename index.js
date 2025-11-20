@@ -27,8 +27,9 @@ function verifySignature(req, res, buf) {
 }
 
 app.post('/webhook', (req, res) => {
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.flushHeaders();
+  // res.writeHead(200, { 'Content-Type': 'application/json' });
+  // res.flushHeaders();
+  res.status(202).json({ received: true });
 
   try {
     /** Deploy type 'main' | 'client | 'crm' */
@@ -84,15 +85,15 @@ app.post('/webhook', (req, res) => {
   deploy.on('close', code => {
     if (code === 0) {
       console.log('Webhook Deployment complete');
-      res.end(JSON.stringify({ success: true, message: 'Deployment complete' }));
+      // res.end(JSON.stringify({ success: true, message: 'Deployment complete' }));
     } else {
       console.error(`Webhook Deployment failed with code ${code}`);
-      res.end(JSON.stringify({ success: false, error: `Deployment failed with code ${code}` }));
+      // res.end(JSON.stringify({ success: false, error: `Deployment failed with code ${code}` }));
     }
   });
   } catch (error) {
     console.error('Webhook Deployment failed', error);
-    res.end(JSON.stringify({ success: false, error: error.message }));    
+    // res.end(JSON.stringify({ success: false, error: error.message }));    
   }
 });
 
