@@ -5,29 +5,47 @@ set -e
 # ==== CONFIGURATION ====
 REPO_URL="git@github.com:GoldenSoftwareLtd/king-of-pos.git"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR=$(realpath "$SCRIPT_DIR/../repos/king-pos-server")
+REPO_DIR=$(realpath "$SCRIPT_DIR/../repos/king-pos-server")
+WORKTREES_DIR=$(realpath "$SCRIPT_DIR/../worktrees")
+PROJECT_DIR="$WORKTREES_DIR/$DOMAIN"
 ENV_FILE="$SCRIPT_DIR/envs/king-pos/.env.prod.local"
-DOCKER_COMPOSE_FILE="$SCRIPT_DIR/envs/docker-compose.server-back.yaml"
 BRANCH="master"
+CLIENT_BRANCH="king-client-${DOMAIN}" 
 DEPLOY_SCRIPT="docker:s:up"
 DB_DEPLOY_SCRIPT="docker:db:up"
 
 echo "📦 Starting client deployment: $(date)"
 echo "📁 Target repository directory: $PROJECT_DIR"
 
-# ==== CLONE OR UPDATE REPOSITORY ====
-if [ -d "$PROJECT_DIR/.git" ]; then
-  echo "📁 Repository already exists. Pulling latest changes..."
+# ==== ENSURE BASE REPO EXISTS ====
+if [ ! -d "$REPO_DIR/.git" ]; then
+  echo "📁 Base repository not found. Cloning..."
+  mkdir -p "$REPO_DIR"
+  git clone --branch "$BRANCH" "$REPO_URL" "$REPO_DIR"
+fi
+
+cd "$REPO_DIR"
+
+# ==== CREATE CLIENT BRANCH IF NEEDED ====
+if ! git show-ref --verify --quiet refs/heads/$CLIENT_BRANCH; then
+  echo "🌱 Creating branch $CLIENT_BRANCH from $BRANCH..."
+  git branch $CLIENT_BRANCH $BRANCH
+fi
+
+# ==== CREATE OR UPDATE WORKTREE ====
+if [ ! -d "$PROJECT_DIR" ]; then
+  echo "📁 Worktree for $DOMAIN not found. Creating..."
+  mkdir -p "$WORKTREES_DIR"
+  cd "$REPO_DIR"
+  git worktree add "$PROJECT_DIR" "$CLIENT_BRANCH"
+else
+  echo "📁 Worktree for $DOMAIN exists. Updating..."
   cd "$PROJECT_DIR"
+  git fetch origin
   git reset --hard
   git clean -fd
-  git fetch origin
-  git checkout $BRANCH
-  git pull origin $BRANCH
-else
-  echo "📁 Cloning repository..."
-  git clone --branch "$BRANCH" "$REPO_URL" "$PROJECT_DIR"
-  cd "$PROJECT_DIR"  
+  git checkout "$CLIENT_BRANCH"
+  git merge origin/$BRANCH
 fi
 
 
@@ -36,19 +54,19 @@ echo "⚙️ Copying environment file (.env.prod.local) to project directory..."
 cp "$ENV_FILE" "$PROJECT_DIR/.env.prod.local"
 
 # ==== INSTALL PRODUCTION DEPENDENCIES ====
-echo "📦 Installing production dependencies with pnpm..."
-pnpm install --prod --ignore-scripts
+# echo "📦 Installing production dependencies with pnpm..."
+# pnpm install --prod --ignore-scripts
 
 # ==== SET SSL CERTIFICATE PATH ====
 SSL_CERT_PATH="$(realpath "$SCRIPT_DIR/ssl")"
 export SSL_CERT_PATH
 
 # ==== RUN DB DEPLOY SCRIPT ====
-echo "🚀 Running pnpm $DB_DEPLOY_SCRIPT with build flag..."
+echo "🚀 Deploying DB container for $DOMAIN with $DB_DEPLOY_SCRIPT"
 pnpm "$DB_DEPLOY_SCRIPT" --build
 
 # ==== RUN DEPLOY SCRIPT ====
-echo "🚀 Running pnpm $DEPLOY_SCRIPT with build flag..."
+echo "🚀 Deploying UI container for $DOMAIN with $DB_DEPLOY_SCRIPT"
 pnpm "$DEPLOY_SCRIPT" --build
 
 # ==== DEPLOYMENT COMPLETE ====

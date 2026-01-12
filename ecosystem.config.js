@@ -7,6 +7,7 @@ module.exports = {
       ignore_watch: [
         'repos',
         'node_modules',
+        'worktrees'
       ],
       env: {
         ...process.env,

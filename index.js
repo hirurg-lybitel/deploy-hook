@@ -37,7 +37,15 @@ app.post('/webhook', (req, res) => {
 
   const payload = Object.keys(req.body).length > 0 ? JSON.parse(req.body.toString()) : {};
 
-  if (payload.ref !== 'refs/heads/master' && payload.ref !== 'refs/heads/main') {
+  if (delpoyType !== 'client' && 
+      payload.ref !== 'refs/heads/master' && payload.ref !== 'refs/heads/main') {
+    console.log('Ignored - not master/main branch', { ref: payload.ref, payload });
+    return res.status(200).json({ ignored: true, message: 'Ignored - not master/main branch' });
+  }
+
+  if (delpoyType === 'client' &&
+    payload.gitBranch !== 'master' && payload.gitBranch !== 'main') {
+    console.log('Ignored - not master/main branch', { ref: payload.ref, payload });
     return res.status(200).json({ ignored: true, message: 'Ignored - not master/main branch' });
   }
   res.status(202).json({ received: true });
@@ -104,6 +112,7 @@ app.post('/webhook', (req, res) => {
       console.log('Webhook Deployment complete');
 
       if (delpoyType === 'king') {
+        await delay(5000);
         try {
           const headers = {
             'Content-Type': 'application/json',
@@ -120,9 +129,8 @@ app.post('/webhook', (req, res) => {
             body: rawBody
           });
 
-          const data = await response.json();
-
           if (response.ok) {
+            const data = await response.json();
             console.log(`Triggered child containers update successfully. Workspaces number: ${data.totalWorkspaces}`);
           } else {
             console.error('Failed to trigger child containers update', response.status);
@@ -143,3 +151,5 @@ app.post('/webhook', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Listening for webhooks on port ${PORT}`);
 });
+
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
