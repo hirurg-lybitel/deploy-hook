@@ -1,13 +1,16 @@
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
-const crypto = require('crypto');
-const { spawn } = require('child_process');
+const crypto = require('node:crypto');
+const { spawn, exec } = require('node:child_process');
 
 const SECRET = process.env.SECRET ?? 'yyehfu34hg67h5';
 const PORT = process.env.PORT ?? 3000;
 const MAIN_CONTAINER_PORT = process.env.MAIN_CONTAINER_PORT;
 const MAIN_DB_PORT = process.env.MAIN_DB_PORT;
+
+const PM2_PUBLIC_KEY = process.env.IN_PM2_PUBLIC_KEY
+const PM2_SECRET_KEY = process.env.IN_PM2_SECRET_KEY
 
 const app = express();
 app.use(bodyParser.raw({ type: 'application/json' }));
@@ -27,19 +30,21 @@ function verifySignature(req, res, buf) {
 }
 
 app.post('/webhook', (req, res) => {
-  // res.writeHead(200, { 'Content-Type': 'application/json' });
-  // res.flushHeaders();
-  res.status(202).json({ received: true });
-
   try {
     /** Deploy type 'main' | 'client | 'crm' */
   const delpoyType = req.query.type;
+  console.log('Webhook Deployment Type:', delpoyType);
 
-  const body = Object.keys(req.body).length > 0 ? JSON.parse(req.body.toString()) : {};
-  const domain = body?.env?.domain;
-  const port = body?.env?.port ?? MAIN_CONTAINER_PORT;
-  const dbPort = body?.env?.dbPort ?? MAIN_DB_PORT;
+  const payload = Object.keys(req.body).length > 0 ? JSON.parse(req.body.toString()) : {};
 
+  if (payload.ref !== 'refs/heads/master' && payload.ref !== 'refs/heads/main') {
+    return res.status(200).json({ ignored: true, message: 'Ignored - not master/main branch' });
+  }
+  res.status(202).json({ received: true });
+
+  const domain = payload?.env?.domain;
+  const port = payload?.env?.port ?? MAIN_CONTAINER_PORT;
+  const dbPort = payload?.env?.dbPort ?? MAIN_DB_PORT;
   const environment = { ...process.env };
 
   /** Delete all custom envs of PM2 to override */
@@ -49,10 +54,14 @@ app.post('/webhook', (req, res) => {
     switch (delpoyType) {
       case 'king':
         return 'deploy.king.sh';
+      case 'king-test':
+        return 'deploy.king.test.sh';        
       case 'client': 
         return 'deploy.client.sh'
       case 'crm':
         return 'deploy.crm.sh'
+      case 'crm-test':
+        return 'deploy.crm.test.sh'
       default:
         return '';
     }
@@ -70,30 +79,64 @@ app.post('/webhook', (req, res) => {
     GIT_CURL_VERBOSE: '1',
     GIT_TERMINAL_PROMPT: '0', 
     GIT_ASKPASS: 'echo',
-    ...(scriptName !== 'deploy.crm.sh' && {
+    ...((scriptName !== 'deploy.crm.sh' && 
+         scriptName !== 'deploy.crm.test.sh') && {
       DOMAIN: domain,
       DB_PORT: dbPort,
       DB_CONTAINER_NAME: domain ? `mongodb.${domain}` : 'mongodb',
-      PORT: port,
+      PORT: delpoyType === 'king-test' ? 61081 : port,
       CONTAINER_NAME: domain ? `king-server-${domain}` : 'king-pos-server',    
       COMPOSE_PROJECT_NAME: domain ? `king-server-${domain}` : 'king-pos-server',
       NEXTAUTH_URL: `https://${domain ?? 'king-pos'}.gdmn.app`,
+      ...(delpoyType === 'king'
+        ? {
+          IS_CENTRAL_DB: 'true',
+          PM2_PUBLIC_KEY,
+          PM2_SECRET_KEY
+        } : {})
+      // NEXT_PUBLIC_DOMAIN: `${domain ?? 'king-pos'}.gdmn.app`
     })
   }});
 
 
-  deploy.on('close', code => {
+  deploy.on('close', async code => {
     if (code === 0) {
       console.log('Webhook Deployment complete');
-      // res.end(JSON.stringify({ success: true, message: 'Deployment complete' }));
+
+      if (delpoyType === 'king') {
+        try {
+          const headers = {
+            'Content-Type': 'application/json',
+            'X-Hub-Signature-256': req.get('X-Hub-Signature-256'),
+            'X-GitHub-Event': req.get('X-GitHub-Event'),
+            'X-GitHub-Delivery': req.get('X-GitHub-Delivery'),
+          };
+
+          const rawBody = JSON.stringify(payload);
+
+          const response = await fetch('https://king-pos.gdmn.app/api/deploy/webhook', {
+            method: 'POST',
+            headers,
+            body: rawBody
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            console.log(`Triggered child containers update successfully. Workspaces number: ${data.totalWorkspaces}`);
+          } else {
+            console.error('Failed to trigger child containers update', response.status);
+          }
+        } catch (err) {
+          console.error('Error triggering child containers update', err);
+        }
+      }
     } else {
       console.error(`Webhook Deployment failed with code ${code}`);
-      // res.end(JSON.stringify({ success: false, error: `Deployment failed with code ${code}` }));
     }
   });
   } catch (error) {
     console.error('Webhook Deployment failed', error);
-    // res.end(JSON.stringify({ success: false, error: error.message }));    
   }
 });
 
