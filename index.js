@@ -39,13 +39,13 @@ app.post('/webhook', (req, res) => {
 
   if (delpoyType !== 'client' && 
       payload.ref !== 'refs/heads/master' && payload.ref !== 'refs/heads/main') {
-    console.log('Ignored - not master/main branch', { ref: payload.ref, payload });
+    console.log('Ignored - not master/main branch', payload.ref);
     return res.status(200).json({ ignored: true, message: 'Ignored - not master/main branch' });
   }
 
   if (delpoyType === 'client' &&
     payload.gitBranch !== 'master' && payload.gitBranch !== 'main') {
-    console.log('Ignored - not master/main branch', { ref: payload.ref, payload });
+    console.log('Ignored - not master/main branch', payload.gitBranch);
     return res.status(200).json({ ignored: true, message: 'Ignored - not master/main branch' });
   }
   res.status(202).json({ received: true });
