@@ -1,12 +1,13 @@
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
-const crypto = require('node:crypto');
-const { spawn, exec } = require('node:child_process');
+const crypto = require('crypto');
+const { spawn, exec } = require('child_process');
 
 const SECRET = process.env.SECRET ?? 'yyehfu34hg67h5';
 const PORT = process.env.PORT ?? 3000;
 const MAIN_CONTAINER_PORT = process.env.MAIN_CONTAINER_PORT;
+const MAIN_DB_HOST = "93.84.115.54";
 const MAIN_DB_PORT = process.env.MAIN_DB_PORT;
 
 const PM2_PUBLIC_KEY = process.env.IN_PM2_PUBLIC_KEY
@@ -52,6 +53,7 @@ app.post('/webhook', (req, res) => {
 
   const domain = payload?.env?.domain;
   const port = payload?.env?.port ?? MAIN_CONTAINER_PORT;
+  const dbHost = payload?.env?.dbHost ?? MAIN_DB_HOST;
   const dbPort = payload?.env?.dbPort ?? MAIN_DB_PORT;
   const environment = { ...process.env };
 
@@ -63,7 +65,7 @@ app.post('/webhook', (req, res) => {
       case 'king':
         return 'deploy.king.sh';
       case 'king-test':
-        return 'deploy.king.test.sh';        
+        return 'deploy.king.test.sh';
       case 'client': 
         return 'deploy.client.sh'
       case 'crm':
@@ -90,6 +92,7 @@ app.post('/webhook', (req, res) => {
     ...((scriptName !== 'deploy.crm.sh' && 
          scriptName !== 'deploy.crm.test.sh') && {
       DOMAIN: domain,
+      DB_HOST: dbHost,
       DB_PORT: dbPort,
       DB_CONTAINER_NAME: domain ? `mongodb.${domain}` : 'mongodb',
       PORT: delpoyType === 'king-test' ? 61081 : port,
@@ -139,12 +142,16 @@ app.post('/webhook', (req, res) => {
           console.error('Error triggering child containers update', err);
         }
       }
+
+      // res.end(JSON.stringify({ success: true, message: 'Deployment complete' }));
     } else {
       console.error(`Webhook Deployment failed with code ${code}`);
+      // res.end(JSON.stringify({ success: false, error: `Deployment failed with code ${code}` }));
     }
   });
   } catch (error) {
     console.error('Webhook Deployment failed', error);
+    // res.end(JSON.stringify({ success: false, error: error.message }));    
   }
 });
 

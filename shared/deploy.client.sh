@@ -37,6 +37,7 @@ if [ ! -d "$PROJECT_DIR" ]; then
   echo "📁 Worktree for $DOMAIN not found. Creating..."
   mkdir -p "$WORKTREES_DIR"
   cd "$REPO_DIR"
+  git worktree prune
   git worktree add "$PROJECT_DIR" "$CLIENT_BRANCH"
 else
   echo "📁 Worktree for $DOMAIN exists. Updating..."
@@ -70,4 +71,4 @@ echo "🚀 Deploying UI container for $DOMAIN with $DB_DEPLOY_SCRIPT"
 pnpm "$DEPLOY_SCRIPT" --build
 
 # ==== DEPLOYMENT COMPLETE ====
-echo "✅ Deployment finished: $(date)"
+echo "✅ Deployment finished for $DOMAIN: $(date)"
