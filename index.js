@@ -97,7 +97,8 @@ app.post('/webhook', (req, res) => {
       DB_CONTAINER_NAME: domain ? `mongodb.${domain}` : 'mongodb',
       PORT: delpoyType === 'king-test' ? 61081 : port,
       CONTAINER_NAME: domain ? `king-server-${domain}` : 'king-pos-server',    
-      COMPOSE_PROJECT_NAME: domain ? `king-server-${domain}` : 'king-pos-server',
+      COMPOSE_PROJECT_NAME: domain ? `king-pos-${domain}` : 'king-pos',
+      DB_VOLUME_NAME: `${domain ? `king-pos-${domain}` : 'king-pos'}.mongodb`,
       NEXTAUTH_URL: `https://${domain ?? 'king-pos'}.gdmn.app`,
       ...(delpoyType === 'king'
         ? {
