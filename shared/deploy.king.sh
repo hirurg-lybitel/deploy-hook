@@ -8,7 +8,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR=$(realpath "$SCRIPT_DIR/../repos/king-pos-server")
 ENV_FILE="$SCRIPT_DIR/envs/king-pos/.env.prod.local"
 BRANCH="master"
-DEPLOY_SCRIPT="docker:s:up"
+BUILD_SCRIPT="docker:s:build"
+DEPLOY_SCRIPT="docker:s:run"
 
 echo "📦 Starting deployment: $(date)"
 echo "📁 Target repository directory: $PROJECT_DIR"
@@ -42,9 +43,14 @@ SSL_CERT_PATH="$(realpath "$SCRIPT_DIR/ssl")"
 echo "SET SSL PATH $SSL_CERT_PATH"
 export SSL_CERT_PATH
 
+# ==== RUN BUILD SCRIPT ====
+echo "🚀 Running building pnpm $BUILD_SCRIPT ..."
+pnpm "$BUILD_SCRIPT"
+
 # ==== RUN DEPLOY SCRIPT ====
-echo "🚀 Running pnpm $DEPLOY_SCRIPT with build flag..."
-pnpm "$DEPLOY_SCRIPT" --build
+echo "🚀 Running deploy pnpm $DEPLOY_SCRIPT ..."
+pnpm "$DEPLOY_SCRIPT"
+
 
 # ==== DEPLOYMENT COMPLETE ====
 echo "✅ Deployment finished: $(date)"

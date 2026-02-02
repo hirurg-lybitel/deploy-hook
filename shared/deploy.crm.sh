@@ -8,7 +8,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR=$(realpath "$SCRIPT_DIR/../repos/gdmn-nxt")
 BRANCH="main"
 ENV_FILE_DIR="$SCRIPT_DIR/envs/crm"
-DEPLOY_SCRIPT="docker:build"
+BUILD_SCRIPT="docker:build"
+DEPLOY_SCRIPT="docker:run"
 
 echo "📦 [CRM] Starting deployment: $(date)"
 echo "📁 Target repository directory: $PROJECT_DIR"
@@ -39,6 +40,10 @@ yarn install
 # ==== SET SSL CERTIFICATE PATH ====
 SSL_CERT_PATH="$(realpath "$SCRIPT_DIR/ssl")"
 export SSL_CERT_PATH
+
+# ==== RUN BUILD SCRIPT ====
+echo "🚀 Running building with $BUILD_SCRIPT ..."
+yarn "$BUILD_SCRIPT"
 
 # ==== RUN DEPLOY SCRIPT ====
 echo "🚀 Running deploy with $DEPLOY_SCRIPT ..."

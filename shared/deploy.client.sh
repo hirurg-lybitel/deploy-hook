@@ -11,8 +11,10 @@ PROJECT_DIR="$WORKTREES_DIR/$DOMAIN"
 ENV_FILE="$SCRIPT_DIR/envs/king-pos/.env.prod.local"
 BRANCH="master"
 CLIENT_BRANCH="king-client-${DOMAIN}" 
-DEPLOY_SCRIPT="docker:s:up"
-DB_DEPLOY_SCRIPT="docker:db:up"
+BUILDER="docker:s:build"
+DEPLOY_SCRIPT="docker:s:run"
+DB_BUILD_SCRIPT="docker:db:build"
+DB_DEPLOY_SCRIPT="docker:db:run"
 
 echo "📦 Starting client deployment: $(date)"
 echo "📁 Target repository directory: $PROJECT_DIR"
@@ -62,13 +64,21 @@ cp "$ENV_FILE" "$PROJECT_DIR/.env.prod.local"
 SSL_CERT_PATH="$(realpath "$SCRIPT_DIR/ssl")"
 export SSL_CERT_PATH
 
+# ==== RUN DB BUILD SCRIPT ====
+echo "🚀 Building DB container for $DOMAIN with $DB_BUILD_SCRIPT"
+pnpm "$DB_BUILD_SCRIPT"
+
 # ==== RUN DB DEPLOY SCRIPT ====
 echo "🚀 Deploying DB container for $DOMAIN with $DB_DEPLOY_SCRIPT"
-pnpm "$DB_DEPLOY_SCRIPT" --build
+pnpm "$DB_DEPLOY_SCRIPT"
+
+# ==== RUN BUILD SCRIPT ====
+echo "🚀 Building UI container for $DOMAIN with $DB_BUILD_SCRIPT"
+pnpm "$DB_BUILD_SCRIPT"
 
 # ==== RUN DEPLOY SCRIPT ====
 echo "🚀 Deploying UI container for $DOMAIN with $DB_DEPLOY_SCRIPT"
-pnpm "$DEPLOY_SCRIPT" --build
+pnpm "$DEPLOY_SCRIPT"
 
 # ==== DEPLOYMENT COMPLETE ====
 echo "✅ Deployment finished for $DOMAIN: $(date)"
