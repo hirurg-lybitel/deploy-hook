@@ -14,14 +14,13 @@ Automated deployments via secure webhooks. This tiny Node.js service listens for
 - Multi-tenant support via git worktree for `client` type
 
 ## How it works
-- The server exposes `POST /webhook?type=<naytron|king-test|client|crm|crm-test>`.
+- The server exposes `POST /webhook?type=<naytron|client>`.
 - The request body (raw JSON) is verified with HMAC SHA256 using your `SECRET`.
 - Branch validation: only `master`/`main` branches trigger deployments (except `client` which uses `payload.gitBranch`).
 - Server responds with `202 Accepted` immediately (async deployment).
 - Based on `type`, one of the scripts in `shared/` is executed:
   - `type=naytron` → `shared/deploy.naytron.sh` (production)
   - `type=client` → `shared/deploy.client.sh` (uses git worktree for multi-tenant)
-  - `type=crm` → `shared/deploy.crm.sh` (production)
 - Scripts clone/update the corresponding repos via SSH, apply env files from `shared/envs/**`, then build and run containers via each project’s own scripts.
 
 ## Project layout
@@ -35,7 +34,7 @@ Automated deployments via secure webhooks. This tiny Node.js service listens for
 ## Requirements
 - Node.js 18+ (Docker image uses `node:22-alpine`)
 - Docker + Docker Compose
-- Git with SSH access to target repos (configure `~/.ssh/config` and keys; scripts use SSH host aliases like `git@github-example:...`, `git@github-example:...`)
+- Git with SSH access to target repos (configure `~/.ssh/config` and keys; set `REPO_URL` in deploy scripts)
 - `pnpm` and `yarn` installed on the server (used by target projects)
 
 ## Environment (.env)
@@ -54,7 +53,7 @@ IN_PM2_SECRET_KEY=
 Notes:
 - `SECRET` is required; requests with invalid or missing signatures are rejected.
 - `PORT` is where this service listens (`0.0.0.0:<PORT>`).
-- **King**: Defaults for app port and DB (`PORT`, `DB_HOST`, `DB_PORT`) are in `shared/envs/naytron/.env.prod.local`. Optional central-only vars (e.g. `TG_BOT_TOKEN`) go in `shared/envs/naytron/.env.central` (see `.env.central.example`).
+- **Naytron (central)**: Defaults for app port and DB (`PORT`, `DB_HOST`, `DB_PORT`) are in `shared/envs/naytron/.env.prod.local`. Optional central-only vars (e.g. `TG_BOT_TOKEN`) go in `shared/envs/naytron/.env.central` (see `.env.central.example`).
 - **Client**: Send `env.domain`, `env.port`, `env.dbHost`, `env.dbPort` in the webhook body; the deploy script writes them into `.env.workspace` so each workspace gets its own values (see `shared/envs/naytron/.env.workspace.example`).
 
 ## Run it
@@ -92,7 +91,7 @@ docker compose up -d
 ## Webhook endpoint
 
 - Method: `POST`
-- URL: `/webhook?type=<naytron|king-test|client|crm|crm-test>`
+- URL: `/webhook?type=<naytron|client>`
 - Headers: `X-Hub-Signature-256: sha256=<hex>`
 - Body: JSON; may contain `env` for domain/ports (used by `naytron`/`client`)
 
@@ -126,7 +125,7 @@ What happens:
 1. The server reads the raw JSON to compute HMAC accurately.
 2. Compares `X-Hub-Signature-256` to `sha256=<hex(HMAC_SHA256(SECRET, rawBody))>`.
 3. **Branch validation**: 
-   - For `naytron`/`crm`: checks `payload.ref` must be `refs/heads/master` or `refs/heads/main`
+   - For `naytron`: checks `payload.ref` must be `refs/heads/master` or `refs/heads/main`
    - For `client`: checks `payload.gitBranch` must be `master` or `main`
    - If branch doesn't match, returns `200 OK` with `{ ignored: true }` and stops
 4. Returns `202 Accepted` immediately (deployment runs asynchronously).
@@ -158,7 +157,7 @@ Immediate response (202 Accepted):
 Note: The deployment runs asynchronously. Check server logs for completion status. The server doesn't wait for deployment to finish before responding.
 
 ## GitHub Webhook setup
-- URL: `http(s)://<host>:<PORT>/webhook?type=<naytron|king-test|client|crm|crm-test>`
+- URL: `http(s)://<host>:<PORT>/webhook?type=<naytron|client>`
 - Content type: `application/json`
 - Secret: your `.env` `SECRET`
 - Events: at minimum, `push` on the main branch of the corresponding repo
@@ -169,18 +168,15 @@ GitHub will sign each request with `X-Hub-Signature-256`, which this service ver
 
 ## Deployment scripts (shared/*.sh)
 
+Before first use, set `REPO_URL` in each script to your main application repository.
+
 ### `shared/deploy.naytron.sh`
-- **Project**: Naytron (production)
+- **Project**: Naytron (production, central instance)
 - **Branch**: `master`
 - **Package manager**: `pnpm`
 - **Environment**: Copies `shared/envs/naytron/.env.prod.local` into the repo; appends `shared/envs/naytron/.env.central` if present (e.g. `TG_BOT_TOKEN` for central only). `.env.workspace` is created empty (via naytron `docker:prepare`); defaults for `PORT`, `DB_HOST`, `DB_PORT` come from `.env.prod.local`.
 - **Special**: Passes `IS_CENTRAL_DB=true`, `PM2_PUBLIC_KEY`, `PM2_SECRET_KEY` from deploy-hook env (only for this type).
 - **Post-deploy**: Triggers child container updates at `https://developer.naytron.dev/api/deploy/webhook`
-
-### `shared/deploy.king.test.sh`
-- **Project**: King POS (test environment)
-- **Port**: Fixed to `61081` (overrides `env.port`)
-- **Other**: Same as `deploy.naytron.sh` but for testing
 
 ### `shared/deploy.client.sh`
 - **Project**: Naytron client (multi-tenant)
@@ -194,18 +190,9 @@ GitHub will sign each request with `X-Hub-Signature-256`, which this service ver
   - Merges `master` into client branch before deploying
 - **Deployments**: Runs DB (`docker:db:build`, `docker:db:run`) then server (`docker:s:build`, `docker:s:run`)
 
-### `shared/deploy.crm.sh`
-- **Project**: CRM (production)
-- **Branch**: `main`
-- **Package manager**: `yarn`
-- **Environment**: Copies all files from `shared/envs/crm/` to project root
-
-### `shared/deploy.crm.test.sh`
-- **Project**: CRM (test environment)
-- **Other**: Same as `deploy.crm.sh` but for testing
-
 **Important notes:**
-- Scripts use SSH host aliases (`git@github-example:...`, `git@github-example:...`), so ensure SSH keys and `~/.ssh/config` are configured on the server.
+- Set `REPO_URL` in deploy scripts to your application repository SSH URL.
+- Ensure SSH keys and `~/.ssh/config` are configured on the server.
 - `SSL_CERT_PATH` is exported pointing to `shared/ssl` and consumed by target projects.
 - Target projects control their own docker-compose; these scripts orchestrate them.
 - All scripts perform `git reset --hard` and `git clean -fd` before pulling to ensure clean state.
@@ -224,11 +211,9 @@ graph TB
     H --> I{Select Deploy Script}
     I -->|type=naytron| J[deploy.naytron.sh]
     I -->|type=client| L[deploy.client.sh]
-    I -->|type=crm| M[deploy.crm.sh]
     
     J --> O[Clone/Update Repo]
     L --> P[Setup Git Worktree]
-    M --> O
     
     O --> Q[Copy Env Files]
     P --> Q
@@ -239,7 +224,7 @@ graph TB
     T -->|naytron only| U[Wait 5s]
     U --> V[Trigger Child Containers Update]
     V --> W[Deployment Complete]
-    T -->|other types| W
+    T -->|client| W
     
     style A fill:#e1f5ff
     style C fill:#fff4e1
@@ -251,7 +236,7 @@ graph TB
 ## Troubleshooting
 - **401 or invalid signature**: wrong `SECRET` or signature computed against a modified body (must use raw JSON).
 - **Branch ignored**: check that you're pushing to `master`/`main` branch (or `payload.gitBranch` for `client` type).
-- **Repo access failures**: check SSH keys and host aliases in `~/.ssh/config` (aliases like `github-example`, `github-example`).
+- **Repo access failures**: check SSH keys, `REPO_URL` in deploy scripts, and `~/.ssh/config` on the server.
 - **Port conflicts**: set `env.port`, `env.dbPort` in the webhook body for client; for naytron, edit `shared/envs/naytron/.env.prod.local` (PORT, DB_HOST, DB_PORT).
 - **Worktree errors** (`client` type): ensure `worktrees/` directory is writable and git worktree commands have proper permissions.
 - **Child containers not updating** (`naytron` type): check that `https://developer.naytron.dev/api/deploy/webhook` is accessible and accepts the forwarded webhook.

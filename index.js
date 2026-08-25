@@ -8,7 +8,6 @@ const { spawn, exec } = require('node:child_process');
 const SECRET = process.env.SECRET ?? 'yyehfu34hg67h5';
 /* PORT - порт, на котором запускается deploy сервер */
 const PORT = process.env.PORT ?? 3000;
-const KING_TEST_PORT = 61081;
 const NAYTRON_ORIGIN = 'https://developer.naytron.dev';
 
 const PM2_PUBLIC_KEY = process.env.IN_PM2_PUBLIC_KEY
@@ -37,25 +36,16 @@ function buildEnvForDeploy({ deployType, domain, port, dbHost, dbPort, seedApiKe
     GIT_ASKPASS: 'echo',
   };
 
-  // CRM сейчас не использует домены/мульти-аренду, ей достаточно базового окружения
-  if (deployType === 'crm' || deployType === 'crm-test') {
-    return {
-      ...baseEnv,
-      ...gitEnv,
-    };
-  }
-
   // Naytron (центральный и клиентские инстансы)
-  const isKingTest = deployType === 'king-test';
-  const isCentralKing = deployType === 'naytron' || deployType === 'king';
+  const isCentralNaytron = deployType === 'naytron';
 
-  const kingPosEnv = {
+  const naytronEnv = {
     DOMAIN: domain,
     ...(dbHost != null && { DB_HOST: dbHost }),
     ...(dbPort != null && { DB_PORT: dbPort }),
     ...(seedApiKeyPlaintext != null && { SEED_API_KEY_PLAINTEXT: seedApiKeyPlaintext }),
     DB_CONTAINER_NAME: domain ? `mongodb.${domain}` : 'mongodb',
-    PORT: isKingTest ? KING_TEST_PORT : port,
+    PORT: port,
     CONTAINER_NAME: domain ? `naytron-server-${domain}` : 'naytron-server',
     COMPOSE_PROJECT_NAME: domain ? `naytron-${domain}` : 'naytron',
     DB_VOLUME_NAME: `${domain ? `naytron-${domain}` : 'naytron'}.mongodb`,
@@ -63,7 +53,7 @@ function buildEnvForDeploy({ deployType, domain, port, dbHost, dbPort, seedApiKe
   };
 
   // TG_BOT_TOKEN для naytron подмешивается из shared/envs/naytron/.env.central в deploy.naytron.sh
-  const centralOnlyEnv = isCentralKing
+  const centralOnlyEnv = isCentralNaytron
     ? {
         IS_CENTRAL_DB: 'true',
         PM2_PUBLIC_KEY,
@@ -74,7 +64,7 @@ function buildEnvForDeploy({ deployType, domain, port, dbHost, dbPort, seedApiKe
   return {
     ...baseEnv,
     ...gitEnv,
-    ...kingPosEnv,
+    ...naytronEnv,
     ...centralOnlyEnv,
   };
 }
@@ -98,7 +88,7 @@ function verifySignature(req, res, buf) {
 
 app.post('/webhook', (req, res) => {
   try {
-    /** Deploy type 'naytron' | 'client | 'crm' */
+    /** Deploy type 'naytron' | 'client' */
   const delpoyType = req.query.type;
   console.log('Webhook Deployment Type:', delpoyType);
 
@@ -126,16 +116,9 @@ app.post('/webhook', (req, res) => {
   const scriptName = (() => {
     switch (delpoyType) {
       case 'naytron':
-      case 'king':
         return 'deploy.naytron.sh';
-      case 'king-test':
-        return 'deploy.king.test.sh';
       case 'client': 
         return 'deploy.client.sh'
-      case 'crm':
-        return 'deploy.crm.sh'
-      case 'crm-test':
-        return 'deploy.crm.test.sh'
       default:
         return '';
     }
