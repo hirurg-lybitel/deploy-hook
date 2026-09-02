@@ -3,13 +3,13 @@
 set -e 
 
 # ==== CONFIGURATION ====
-REPO_URL="set path to main repo"
+REPO_URL="git@github.com:naytron-org/naytron.git"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR=$(realpath "$SCRIPT_DIR/../repos/naytron-server")
 WORKTREES_DIR=$(realpath "$SCRIPT_DIR/../worktrees")
 PROJECT_DIR="$WORKTREES_DIR/$DOMAIN"
 ENV_FILE="$SCRIPT_DIR/envs/naytron/.env.prod.local"
-BRANCH="master"
+BRANCH="main"
 CLIENT_BRANCH="naytron-client-${DOMAIN}"
 BUILDER="docker:s:build"
 DEPLOY_SCRIPT="docker:s:run"
