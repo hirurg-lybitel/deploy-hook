@@ -168,11 +168,11 @@ GitHub will sign each request with `X-Hub-Signature-256`, which this service ver
 
 ## Deployment scripts (shared/*.sh)
 
-Before first use, set `REPO_URL` in each script to your main application repository.
+Deploy scripts clone [`naytron-org/naytron`](https://github.com/naytron-org/naytron) via SSH (`REPO_URL="git@github.com:naytron-org/naytron.git"`, branch `main`). Configure a deploy key or SSH key on the server before first run.
 
 ### `shared/deploy.naytron.sh`
 - **Project**: Naytron (production, central instance)
-- **Branch**: `master`
+- **Branch**: `main`
 - **Package manager**: `pnpm`
 - **Environment**: Copies `shared/envs/naytron/.env.prod.local` into the repo; appends `shared/envs/naytron/.env.central` if present (e.g. `TG_BOT_TOKEN` for central only). `.env.workspace` is created empty (via naytron `docker:prepare`); defaults for `PORT`, `DB_HOST`, `DB_PORT` come from `.env.prod.local`.
 - **Special**: Passes `IS_CENTRAL_DB=true`, `PM2_PUBLIC_KEY`, `PM2_SECRET_KEY` from deploy-hook env (only for this type).
@@ -180,18 +180,18 @@ Before first use, set `REPO_URL` in each script to your main application reposit
 
 ### `shared/deploy.client.sh`
 - **Project**: Naytron client (multi-tenant)
-- **Branch**: `master` (merged into client-specific branches)
+- **Branch**: `main` (merged into client-specific branches)
 - **Package manager**: `pnpm`
 - **Environment**: Copies `shared/envs/naytron/.env.prod.local`; writes `PORT`, `DB_HOST`, `DB_PORT` from the webhook payload into `.env.workspace` so compose uses per-workspace values (see `shared/envs/naytron/.env.workspace.example`).
 - **Special**: Uses **git worktree** for multi-tenant deployments
   - Base repo cloned to `repos/naytron-server`
   - Each domain gets its own worktree in `worktrees/<domain>`
   - Creates branch `naytron-client-<domain>` if it doesn't exist
-  - Merges `master` into client branch before deploying
+  - Merges `main` into client branch before deploying
 - **Deployments**: Runs DB (`docker:db:build`, `docker:db:run`) then server (`docker:s:build`, `docker:s:run`)
 
 **Important notes:**
-- Set `REPO_URL` in deploy scripts to your application repository SSH URL.
+- `REPO_URL` points to `git@github.com:naytron-org/naytron.git`; add a read-only deploy key on that repo for the deploy server.
 - Ensure SSH keys and `~/.ssh/config` are configured on the server.
 - `SSL_CERT_PATH` is exported pointing to `shared/ssl` and consumed by target projects.
 - Target projects control their own docker-compose; these scripts orchestrate them.
