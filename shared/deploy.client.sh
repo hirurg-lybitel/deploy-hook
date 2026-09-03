@@ -5,8 +5,9 @@ set -e
 # ==== CONFIGURATION ====
 REPO_URL="git@github.com:naytron-org/naytron.git"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR=$(realpath "$SCRIPT_DIR/../repos/naytron-server")
-WORKTREES_DIR=$(realpath "$SCRIPT_DIR/../worktrees")
+mkdir -p "$SCRIPT_DIR/../repos" "$SCRIPT_DIR/../worktrees"
+REPO_DIR="$(cd "$SCRIPT_DIR/../repos" && pwd)/naytron-server"
+WORKTREES_DIR="$(cd "$SCRIPT_DIR/../worktrees" && pwd)"
 PROJECT_DIR="$WORKTREES_DIR/$DOMAIN"
 ENV_FILE="$SCRIPT_DIR/envs/naytron/.env.prod.local"
 BRANCH="main"

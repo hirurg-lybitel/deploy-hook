@@ -5,7 +5,8 @@ set -e
 # ==== CONFIGURATION ====
 REPO_URL="git@github.com:naytron-org/naytron.git"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR=$(realpath "$SCRIPT_DIR/../repos/naytron-server")
+mkdir -p "$SCRIPT_DIR/../repos"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../repos" && pwd)/naytron-server"
 ENV_FILE="$SCRIPT_DIR/envs/naytron/.env.prod.local"
 BRANCH="main"
 BUILD_SCRIPT="docker:s:build"
