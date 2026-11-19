@@ -42,7 +42,7 @@ fi
 
 # ==== INSTALL PRODUCTION DEPENDENCIES ====
 echo "📦 Installing production dependencies with pnpm..."
-pnpm install --prod --ignore-scripts
+pnpm install --ignore-scripts
 
 # ==== SET SSL CERTIFICATE PATH ====
 SSL_CERT_PATH="$(realpath "$SCRIPT_DIR/ssl")"
